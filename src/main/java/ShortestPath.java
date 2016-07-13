@@ -1,9 +1,6 @@
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.json.JSONObject;
-import org.neo4j.graphalgo.GraphAlgoFactory;
-import org.neo4j.graphalgo.PathFinder;
-import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.GeoEstimateEvaluator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
@@ -16,13 +13,11 @@ import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 
-public class EmbeddedNeo4j {
+public class ShortestPath {
 
     private static final List<String> LIST_OF_CITIES = asList(
             "Boston",
@@ -34,7 +29,7 @@ public class EmbeddedNeo4j {
             "Las-Vegas",
             "Seattle");
 
-    private static final String DB_PATH = "target/neo4j-hello-db";
+    private static final String DB_PATH = "target/neo4j-db";
 
     private enum NodeTypes implements Label {
         CITY
@@ -61,7 +56,7 @@ public class EmbeddedNeo4j {
         }
     };*/
 
-    private void createRelationships(GraphDatabaseService graphDb, GeoEstimateEvaluator geoEstimateEvaluator, Method method, String... cityNames) throws InvocationTargetException, IllegalAccessException {
+    private static void createRelationships(GraphDatabaseService graphDb, GeoEstimateEvaluator geoEstimateEvaluator, Method method, String... cityNames) throws InvocationTargetException, IllegalAccessException {
         for (int i = 0; i < cityNames.length - 1; i++) {
             Node firstNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i]);
             Node secondNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i + 1]);
@@ -88,25 +83,30 @@ public class EmbeddedNeo4j {
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         //https://github.com/neo4j/neo4j/tree/2.2.2/community/embedded-examples/src/main/java/org/neo4j/examples
-
         //https://searchcode.com/codesearch/view/15572561/
-
         //https://keyholesoftware.com/2013/01/28/mapping-shortest-routes-using-a-graph-database/
-
         //https://maxdemarzi.com/2015/09/04/flight-search-with-the-neo4j-traversal-api/
 
         FileUtils.deleteRecursively(new File(DB_PATH));
+        GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File(DB_PATH));
 
         CloseableHttpClient client = HttpClients.createDefault();
-        Map<String, JSONObject> cityInformation = LIST_OF_CITIES.stream().collect(Collectors.toMap(city -> city, city -> GoogleAPI.getLatLong(client, city)));
+        MapAPI mapAPI = new MapAPI(client);
+        Map<String, JSONObject> cityInformation = LIST_OF_CITIES.stream().collect(Collectors.toMap(city -> city, mapAPI::getLatLong));
         client.close();
 
-        EmbeddedNeo4j hello = new EmbeddedNeo4j();
+        /*for(Map.Entry<String, JSONObject> entry : cityInformation.entrySet()) {
+            System.out.printf("%s ; %s\n", entry.getKey(), entry.getValue());
+        }*/
 
-        GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File(DB_PATH));
-        hello.registerShutdownHook(graphDb);
+        Neo4jDButils neo4jDButils = new Neo4jDButils(graphDb);
 
-        hello.fillDB(graphDb, cityInformation);
+        neo4jDButils.registerShutdownHook();
+
+        fillDB(graphDb, cityInformation);
+
+
+
 
         /*try (Transaction tx = graphDb.beginTx()) {
 
@@ -125,8 +125,9 @@ public class EmbeddedNeo4j {
             tx.success();
         }*/
 
-        hello.removeData(graphDb);
-        hello.shutDown(graphDb);
+
+        neo4jDButils.removeData();
+        neo4jDButils.shutDown();
 
     }
 
@@ -138,7 +139,7 @@ public class EmbeddedNeo4j {
     }
 
 
-    private void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         GeoEstimateEvaluator geoEstimateEvaluator = new GeoEstimateEvaluator("latKey", "lngKey");
         Method method = geoEstimateEvaluator.getClass().getDeclaredMethod("distance", double.class, double.class, double.class, double.class);
@@ -162,45 +163,5 @@ public class EmbeddedNeo4j {
             tx.success();
         }
     }
-
-    private void removeData(GraphDatabaseService graphDb) {
-        try (Transaction tx = graphDb.beginTx()) {
-
-            //delete the relationships before the nodes
-            ResourceIterable<Relationship> allRelationships = graphDb.getAllRelationships();
-            List<Relationship> lstAllRelationships = allRelationships.stream().collect(Collectors.toList());
-            for (Relationship relationship : lstAllRelationships) {
-                //System.out.println("Deleting " + relationship.getAllProperties() + " ; " + relationship.getStartNode().getProperty("name") + " ; " + relationship.getEndNode().getProperty("name"));
-                relationship.delete();
-            }
-
-            ResourceIterable<Node> allNodes = graphDb.getAllNodes();
-            List<Node> lstAllNodes = allNodes.stream().collect(Collectors.toList());
-            for (Node node : lstAllNodes) {
-                //System.out.println("Deleting " + node.getAllProperties());
-                node.delete();
-            }
-
-            tx.success();
-        }
-    }
-
-    private void shutDown(GraphDatabaseService graphDb) {
-        System.out.println();
-        System.out.println("Shutting down database ...");
-        graphDb.shutdown();
-    }
-
-    // Registers a shutdown hook for the Neo4j instance so that it shuts down nicely when the VM exits (even if you "Ctrl-C" the running application).
-    private void registerShutdownHook(final GraphDatabaseService graphDb) {
-        //System.out.println("registering shutdown hook");
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                graphDb.shutdown();
-            }
-        });
-    }
-
 
 }

@@ -1,38 +1,26 @@
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
 
-import static java.util.Arrays.asList;
+public class MapAPI {
 
-public class GoogleAPI {
+    private CloseableHttpClient closeableHttpClient;
 
-    public static JSONObject getLatLong(CloseableHttpClient closeableHttpClient, String cityName) {
+    public MapAPI(CloseableHttpClient closeableHttpClient) {
+        this.closeableHttpClient = closeableHttpClient;
+    }
 
-        URI uri = null;
+    public JSONObject getLatLong(String cityName) {
 
-        try {
-            uri = new URIBuilder()
-                        .setScheme("http")
-                        .setHost("maps.googleapis.com")
-                        .setPath("/maps/api/geocode/json")
-                        .setParameter("address", cityName)
-                        .setParameter("sensor", "false")
-                        .build();
-        } catch (URISyntaxException e1) {
-            e1.printStackTrace();
-        }
-
+        URI uri = new URIfactory(cityName).getRelevantURI();
         HttpGet request = new HttpGet(uri);
+
         CloseableHttpResponse response = null;
 
         try {
@@ -48,12 +36,11 @@ public class GoogleAPI {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         String jsonString = Utils.convertStreamToString(instream);
         JSONObject jsonObject = new JSONObject(jsonString);
-
-        //take only the first element of the response assuming this is indeed the correct city as there may be multiple cities with the same name
+        //take only the first element of the response assuming this is indeed the correct city
+        //as there may be multiple cities with the same name
         return jsonObject.getJSONArray("results").getJSONObject(0).getJSONObject("geometry").getJSONObject("location");
-    }
 
+    }
 }
