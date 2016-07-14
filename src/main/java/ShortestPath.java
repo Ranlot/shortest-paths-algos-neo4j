@@ -1,7 +1,6 @@
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.json.JSONObject;
-import org.neo4j.graphalgo.impl.util.GeoEstimateEvaluator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.io.fs.FileUtils;
@@ -9,10 +8,10 @@ import org.neo4j.io.fs.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -39,44 +38,21 @@ public class ShortestPath {
         CONNECTED_TO
     }
 
-    private static double getDistanceUsingNeo4jReflection(Method reflectedMethod, GeoEstimateEvaluator geoEstimateEvaluator,
-                                                          double lat1,
-                                                          double lng1,
-                                                          double lat2,
-                                                          double lng2) throws InvocationTargetException, IllegalAccessException {
-        double distance = (double) reflectedMethod.invoke(geoEstimateEvaluator, lat1, lng1, lat2, lng2);
-        return distance;
-    }
 
-
-    /*public static final BiFunction<GeoEstimateEvaluator, Method, Function> makeDis = new BiFunction<GeoEstimateEvaluator, Method, Double>() {
-        @Override
-        public Double apply(GeoEstimateEvaluator geoEstimateEvaluator, Method method) {
-            return null;
-        }
-    };*/
-
-    private static void createRelationships(GraphDatabaseService graphDb, GeoEstimateEvaluator geoEstimateEvaluator, Method method, String... cityNames) throws InvocationTargetException, IllegalAccessException {
+    private static void createRelationships(GraphDatabaseService graphDb, BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator, String... cityNames) {
         for (int i = 0; i < cityNames.length - 1; i++) {
             Node firstNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i]);
             Node secondNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i + 1]);
             Relationship relationship = firstNode.createRelationshipTo(secondNode, RelTypes.CONNECTED_TO);
 
-            double cityDistance = Utils.geoDistance(
-                    (Double) firstNode.getProperty("lat"),
-                    (Double) firstNode.getProperty("lng"),
-                    (Double) secondNode.getProperty("lat"),
-                    (Double) secondNode.getProperty("lng"),
-                    'K');
+            GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"));
+            GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
 
-
-            double distance2 = getDistanceUsingNeo4jReflection(method, geoEstimateEvaluator, (Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"), (Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
-
-            System.out.println(cityDistance + " ; " + distance2 / 1000.);
+            double cityDistance = distanceCalculator.apply(location1, location2);
 
             relationship.setProperty("distance", cityDistance);
-            /*System.out.println(firstNode.getAllProperties());
-            System.out.println(secondNode.getAllProperties());*/
+
+            System.out.printf("%s ; %s ; %.2f km\n", relationship.getStartNode().getProperty("name"), relationship.getEndNode().getProperty("name"), (Double) relationship.getProperty("distance"));
         }
     }
 
@@ -89,6 +65,7 @@ public class ShortestPath {
 
         FileUtils.deleteRecursively(new File(DB_PATH));
         GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File(DB_PATH));
+        Neo4jDButils neo4jDButils = new Neo4jDButils(graphDb);
 
         CloseableHttpClient client = HttpClients.createDefault();
         MapAPI mapAPI = new MapAPI(client);
@@ -99,29 +76,21 @@ public class ShortestPath {
             System.out.printf("%s ; %s\n", entry.getKey(), entry.getValue());
         }*/
 
-        Neo4jDButils neo4jDButils = new Neo4jDButils(graphDb);
 
         neo4jDButils.registerShutdownHook();
 
         fillDB(graphDb, cityInformation);
 
 
-
-
         /*try (Transaction tx = graphDb.beginTx()) {
 
             PathFinder<Path> pathFinder = GraphAlgoFactory.shortestPath(PathExpanderBuilder.allTypesAndDirections().build(), 5);
-
             PathFinder<WeightedPath> pathFinder2 = GraphAlgoFactory.dijkstra(PathExpanderBuilder.allTypesAndDirections().build(), "distance");
-
             //Path path = pathFinder.findSinglePath(graphDb.findNode(NodeTypes.CITY, "name", "Boston"), graphDb.findNode(NodeTypes.CITY, "name", "Los-Angeles"));
-
             WeightedPath path = pathFinder2.findSinglePath(graphDb.findNode(NodeTypes.CITY, "name", "Boston"), graphDb.findNode(NodeTypes.CITY, "name", "Los-Angeles"));
-
             for(PropertyContainer prop : path) {
                 System.out.println("here ;   " + prop.getAllProperties());
             }
-
             tx.success();
         }*/
 
@@ -139,26 +108,23 @@ public class ShortestPath {
     }
 
 
-    private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException {
 
-        GeoEstimateEvaluator geoEstimateEvaluator = new GeoEstimateEvaluator("latKey", "lngKey");
-        Method method = geoEstimateEvaluator.getClass().getDeclaredMethod("distance", double.class, double.class, double.class, double.class);
-        method.setAccessible(true);
+        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
+        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
 
         try (Transaction tx = graphDb.beginTx()) {
 
-            //System.out.println("hi");
-
             cityInformation.keySet().stream().forEach(city -> createNode(graphDb, city, cityInformation.get(city)));
 
-            createRelationships(graphDb, geoEstimateEvaluator, method, "Boston", "Detroit", "New-York");
-            createRelationships(graphDb, geoEstimateEvaluator, method, "Boston", "New-York", "Las-Vegas", "Seattle");
-            createRelationships(graphDb, geoEstimateEvaluator, method, "Detroit", "Miami", "Los-Angeles");
-            createRelationships(graphDb, geoEstimateEvaluator, method, "Detroit", "San-Francisco", "Los-Angeles");
-            createRelationships(graphDb, geoEstimateEvaluator, method, "Detroit", "Las-Vegas", "Los-Angeles");
+            //TODO: generalise the createRelationships with new class and currying
 
-            //Relationship relationship = firstNode.createRelationshipTo(secondNode, RelTypes.CONNECTED_TO);
-            //relationship.setProperty("distance", 152);
+            createRelationships(graphDb, distanceCalculator, "Boston", "Detroit", "New-York");
+            createRelationships(graphDb, distanceCalculator, "Boston", "New-York", "Las-Vegas", "Seattle");
+            createRelationships(graphDb, distanceCalculator, "Detroit", "Miami", "Los-Angeles");
+            createRelationships(graphDb, distanceCalculator, "Detroit", "San-Francisco", "Los-Angeles");
+            createRelationships(graphDb, distanceCalculator, "Detroit", "Las-Vegas", "Los-Angeles");
+
 
             tx.success();
         }
