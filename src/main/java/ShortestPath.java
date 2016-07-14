@@ -110,8 +110,8 @@ public class ShortestPath {
 
     private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException {
 
-        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
-        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
+        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
+        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
 
         try (Transaction tx = graphDb.beginTx()) {
 
