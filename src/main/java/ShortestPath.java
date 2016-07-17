@@ -4,6 +4,7 @@ import org.json.JSONObject;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.io.fs.FileUtils;
+import org.omg.CORBA.portable.ValueOutputStream;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -38,23 +40,6 @@ public class ShortestPath {
         CONNECTED_TO
     }
 
-
-    private static void createRelationships(GraphDatabaseService graphDb, BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator, String... cityNames) {
-        for (int i = 0; i < cityNames.length - 1; i++) {
-            Node firstNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i]);
-            Node secondNode = graphDb.findNode(NodeTypes.CITY, "name", cityNames[i + 1]);
-            Relationship relationship = firstNode.createRelationshipTo(secondNode, RelTypes.CONNECTED_TO);
-
-            GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"));
-            GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
-
-            double cityDistance = distanceCalculator.apply(location1, location2);
-
-            relationship.setProperty("distance", cityDistance);
-
-            System.out.printf("%s ; %s ; %.2f km\n", relationship.getStartNode().getProperty("name"), relationship.getEndNode().getProperty("name"), (Double) relationship.getProperty("distance"));
-        }
-    }
 
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
@@ -108,23 +93,59 @@ public class ShortestPath {
     }
 
 
+    private static Void createRelationships(GraphDatabaseService graphDb, BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator, CityConnector connectionLine) {
+
+        for (int i = 0; i < connectionLine.getNumberOfCities() - 1; i++) {
+
+            Node firstNode = graphDb.findNode(NodeTypes.CITY, "name", connectionLine.getCity(i));
+            Node secondNode = graphDb.findNode(NodeTypes.CITY, "name", connectionLine.getCity(i+1));
+            Relationship relationship = firstNode.createRelationshipTo(secondNode, RelTypes.CONNECTED_TO);
+
+            GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"));
+            GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
+
+            double cityDistance = distanceCalculator.apply(location1, location2);
+
+            relationship.setProperty("distance", cityDistance);
+
+            System.out.printf("%s ; %s ; %.2f km\n", relationship.getStartNode().getProperty("name"), relationship.getEndNode().getProperty("name"), (Double) relationship.getProperty("distance"));
+
+        }
+
+        return null;
+    }
+
+    private static ThreeArgsFunction<GraphDatabaseService, BiFunction<GeoLocation, GeoLocation, Double>, CityConnector, Void> generalRelationshipCreater = (graphDatabaseService, geoLocationGeoLocationDoubleBiFunction, cityConnector) -> {
+        return createRelationships(graphDatabaseService, geoLocationGeoLocationDoubleBiFunction, cityConnector);
+    };
+
+
     private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation) throws NoSuchMethodException {
 
-        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
-        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
+        //TODO: generalise the createRelationships with new class
+
+        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
+        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
+
+        Function<CityConnector, Void> relationshipCreater = cityConnector -> {
+            try {
+                return generalRelationshipCreater.apply(graphDb, distanceCalculator, cityConnector);
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                e.printStackTrace();
+                return null;
+            }
+        };
+
 
         try (Transaction tx = graphDb.beginTx()) {
 
             cityInformation.keySet().stream().forEach(city -> createNode(graphDb, city, cityInformation.get(city)));
 
-            //TODO: generalise the createRelationships with new class and currying
-
-            createRelationships(graphDb, distanceCalculator, "Boston", "Detroit", "New-York");
-            createRelationships(graphDb, distanceCalculator, "Boston", "New-York", "Las-Vegas", "Seattle");
-            createRelationships(graphDb, distanceCalculator, "Detroit", "Miami", "Los-Angeles");
-            createRelationships(graphDb, distanceCalculator, "Detroit", "San-Francisco", "Los-Angeles");
-            createRelationships(graphDb, distanceCalculator, "Detroit", "Las-Vegas", "Los-Angeles");
-
+            relationshipCreater.apply(new CityConnector("Boston", "Detroit", "New-York"));
+            relationshipCreater.apply(new CityConnector("Boston", "New-York", "Las-Vegas", "Seattle"));
+            relationshipCreater.apply(new CityConnector("Detroit", "Miami", "Los-Angeles"));
+            relationshipCreater.apply(new CityConnector("Detroit", "San-Francisco", "Los-Angeles"));
+            relationshipCreater.apply(new CityConnector("Detroit", "Las-Vegas", "Los-Angeles"));
 
             tx.success();
         }

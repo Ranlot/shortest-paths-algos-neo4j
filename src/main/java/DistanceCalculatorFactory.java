@@ -31,6 +31,7 @@ public class DistanceCalculatorFactory {
     public BiFunction<GeoLocation, GeoLocation, Double> getNeo4jDistanceCalculator() {
         return (location1, location2) -> {
             try {
+                //TODO: what is this return doing here?
                 return reflectedCalculatorfromNeo4j.apply(reflectedMethod, geoEstimateEvaluator, location1, location2);
             } catch (InvocationTargetException | IllegalAccessException e) {
                 e.printStackTrace();
