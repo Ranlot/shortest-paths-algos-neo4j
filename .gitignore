@@ -2,7 +2,7 @@ settings.gradle
 build/
 .idea/
 .gradle/
-target/
+connectedCitiesDB/
 gradlew.bat
 gradlew
 gradle-wrapper*
