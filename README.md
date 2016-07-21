@@ -5,7 +5,7 @@
 The purpose of this project is to provide a very basic introduction into the world of 
 graph databases / analytics using the popular Neo4j as an example.
 
-The main class of the project is `ShortestPath.java`.  We create a [network of city](src/main/resources/citySchedule.csv)
+The main class of the project is `ShortestPath.java`.  We create a [network of cities](src/main/resources/citySchedule.csv).
 
 ## Web UI
 
