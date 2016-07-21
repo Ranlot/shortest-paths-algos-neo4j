@@ -31,7 +31,7 @@ public class ShortestPath {
             "Las-Vegas",
             "Seattle");
 
-    private static final String DB_PATH = "target/neo4j-db";
+    private static final String DB_PATH = "connectedCitiesDB";
 
     public enum NodeTypes implements Label {
         CITY
@@ -86,15 +86,15 @@ public class ShortestPath {
         }*/
 
 
-        neo4jDButils.removeData();
+        //neo4jDButils.removeData();
         neo4jDButils.shutDown();
 
     }
 
     private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation, List<CityConnector> cityConnectorArrayList) throws NoSuchMethodException {
 
-        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
-        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
+        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
+        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
 
         DBfiller dBfiller = new DBfiller(graphDb, distanceCalculator);
         dBfiller.createAllNodes(cityInformation);
