@@ -43,6 +43,8 @@ public class ShortestPath {
 
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
+        //TODO:  read the list of cities from the external text file and generate set of relevant cities automatically
+
         //https://github.com/neo4j/neo4j/tree/2.2.2/community/embedded-examples/src/main/java/org/neo4j/examples
         //https://searchcode.com/codesearch/view/15572561/
         //https://keyholesoftware.com/2013/01/28/mapping-shortest-routes-using-a-graph-database/
