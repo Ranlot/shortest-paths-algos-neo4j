@@ -9,7 +9,7 @@ The main class of the project is `ShortestPath.java`.
 
 ## Web UI
 
-You can load the content of the database created by the `fillDB` method to the Neo4j web server simply by pointing the database 
+You can load the content of the database created by the `ShortestPath::fillDB` method to the Neo4j web server simply by pointing the database 
 location to `$ROOT_OF_REPOSITORY/$DB_PATH` when starting the UI.  (In our case `$DB_PATH` is `connectedCitiesDB/`).
 
 It is then possible to get a basic visualization of the entire graph connecting all the cities together 
