@@ -1,3 +1,6 @@
+package Main;
+
+import FileIO.FileIOutils;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.json.JSONObject;
@@ -43,7 +46,7 @@ public class ShortestPath {
 
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
-        //TODO:  read the list of cities from the external text file and generate set of relevant cities automatically
+        //TODO: generate set of relevant cities automatically
 
         //https://github.com/neo4j/neo4j/tree/2.2.2/community/embedded-examples/src/main/java/org/neo4j/examples
         //https://searchcode.com/codesearch/view/15572561/
@@ -59,16 +62,17 @@ public class ShortestPath {
         Map<String, JSONObject> cityInformation = LIST_OF_CITIES.stream().collect(Collectors.toMap(city -> city, mapAPI::getLatLong));
         client.close();
 
-        List<CityConnector> cityConnectorArrayList = new ArrayList<>();
-        cityConnectorArrayList.add(new CityConnector("Boston", "Detroit", "New-York"));
-        cityConnectorArrayList.add(new CityConnector("Boston", "New-York", "Las-Vegas", "Seattle"));
-        cityConnectorArrayList.add(new CityConnector("Detroit", "Miami", "Los-Angeles"));
-        cityConnectorArrayList.add(new CityConnector("Detroit", "San-Francisco", "Los-Angeles"));
-        cityConnectorArrayList.add(new CityConnector("Detroit", "Las-Vegas", "Los-Angeles"));
+        //--------------------------------
+
+        String fileName = "src\\main\\resources\\citySchedule.csv";
+
+        List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();
 
         /*for(Map.Entry<String, JSONObject> entry : cityInformation.entrySet()) {
             System.out.printf("%s ; %s\n", entry.getKey(), entry.getValue());
         }*/
+
+        //--------------------------------
 
         neo4jDButils.registerShutdownHook();
 
@@ -88,7 +92,7 @@ public class ShortestPath {
         }*/
 
 
-        //neo4jDButils.removeData();
+        neo4jDButils.removeData();
         neo4jDButils.shutDown();
 
     }
@@ -96,7 +100,7 @@ public class ShortestPath {
     private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation, List<CityConnector> cityConnectorArrayList) throws NoSuchMethodException {
 
         BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
-        //BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNaiveDistance();
+        //BiFunction<Main.GeoLocation, Main.GeoLocation, Double> distanceCalculator = new Main.DistanceCalculatorFactory().getNaiveDistance();
 
         DBfiller dBfiller = new DBfiller(graphDb, distanceCalculator);
         dBfiller.createAllNodes(cityInformation);

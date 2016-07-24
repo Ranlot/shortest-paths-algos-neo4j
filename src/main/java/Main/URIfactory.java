@@ -1,3 +1,5 @@
+package Main;
+
 import org.apache.http.client.utils.URIBuilder;
 
 import java.net.URI;

@@ -1,3 +1,5 @@
+package Main;
+
 import org.neo4j.graphalgo.impl.util.GeoEstimateEvaluator;
 
 import java.lang.reflect.InvocationTargetException;

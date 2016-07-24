@@ -1,3 +1,5 @@
+package Main;
+
 import org.neo4j.graphdb.*;
 
 import java.util.List;

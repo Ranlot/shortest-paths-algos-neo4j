@@ -1,3 +1,5 @@
+package Main;
+
 import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
 import java.util.function.Function;
