@@ -1,5 +1,8 @@
 package Main;
 
+import DistanceFunctions.DistanceCalculator;
+import DistanceFunctions.NaiveGeometricDistance;
+import DistanceFunctions.ReflectedNeo4jDistance;
 import FileIO.FileIOutils;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -16,7 +19,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 public class ShortestPath {
@@ -40,6 +42,7 @@ public class ShortestPath {
 
         //--------------------------------
         String fileName = "src\\main\\resources\\citySchedule.csv";
+        boolean useNaiveDistance = false;
 
         List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();  //get the list of possible routes
         //once we have this list, extract the list of relevant cities
@@ -61,8 +64,10 @@ public class ShortestPath {
 
         neo4jDButils.registerShutdownHook();
 
-        fillDB(graphDb, cityInformation, cityConnectorArrayList);
+        //decide on which distance function to use
+        DistanceCalculator distanceCalculator = useNaiveDistance ? new NaiveGeometricDistance() : new ReflectedNeo4jDistance();
 
+        fillDB(graphDb, cityInformation, cityConnectorArrayList, distanceCalculator);
 
         /*try (Transaction tx = graphDb.beginTx()) {
 
@@ -76,18 +81,14 @@ public class ShortestPath {
             tx.success();
         }*/
 
-
         neo4jDButils.removeData();
         neo4jDButils.shutDown();
 
     }
 
-    private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation, List<CityConnector> cityConnectorArrayList) throws NoSuchMethodException {
+    private static void fillDB(GraphDatabaseService graphDb, Map<String, JSONObject> cityInformation, List<CityConnector> cityConnectorArrayList, DistanceCalculator distanceCalculator) {
 
-        BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator = new DistanceCalculatorFactory().getNeo4jDistanceCalculator();
-        //BiFunction<Main.GeoLocation, Main.GeoLocation, Double> distanceCalculator = new Main.DistanceCalculatorFactory().getNaiveDistance();
-
-        DBfiller dBfiller = new DBfiller(graphDb, distanceCalculator);
+        DBfiller dBfiller = new DBfiller(graphDb, distanceCalculator.getDistanceCalculator());
         dBfiller.createAllNodes(cityInformation);
         cityConnectorArrayList.stream().forEach(dBfiller::createRelationship);
 

@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 @FunctionalInterface
-interface FourArgsFunction<A, B, C, D, R> {
+public interface FourArgsFunction<A, B, C, D, R> {
 
     R apply(A a, B b, C c, D d) throws InvocationTargetException, IllegalAccessException;
 
