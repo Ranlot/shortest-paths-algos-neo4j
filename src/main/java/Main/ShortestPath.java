@@ -14,25 +14,12 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.asList;
-
 public class ShortestPath {
-
-    private static final List<String> LIST_OF_CITIES = asList(
-            "Boston",
-            "New-York",
-            "Detroit",
-            "Miami",
-            "Los-Angeles",
-            "San-Francisco",
-            "Las-Vegas",
-            "Seattle");
 
     private static final String DB_PATH = "connectedCitiesDB";
 
@@ -46,12 +33,22 @@ public class ShortestPath {
 
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
-        //TODO: generate set of relevant cities automatically
-
         //https://github.com/neo4j/neo4j/tree/2.2.2/community/embedded-examples/src/main/java/org/neo4j/examples
         //https://searchcode.com/codesearch/view/15572561/
         //https://keyholesoftware.com/2013/01/28/mapping-shortest-routes-using-a-graph-database/
         //https://maxdemarzi.com/2015/09/04/flight-search-with-the-neo4j-traversal-api/
+
+        //--------------------------------
+        String fileName = "src\\main\\resources\\citySchedule.csv";
+
+        List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();  //get the list of possible routes
+        //once we have this list, extract the list of relevant cities
+        List<String> listOfCities = cityConnectorArrayList.stream().flatMap(connectedCities -> connectedCities.getConnectedCities().stream()).distinct().collect(Collectors.toList());
+
+        /*for(Map.Entry<String, JSONObject> entry : cityInformation.entrySet()) {
+            System.out.printf("%s ; %s\n", entry.getKey(), entry.getValue());
+        }*/
+        //--------------------------------
 
         FileUtils.deleteRecursively(new File(DB_PATH));
         GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(new File(DB_PATH));
@@ -59,20 +56,8 @@ public class ShortestPath {
 
         CloseableHttpClient client = HttpClients.createDefault();
         MapAPI mapAPI = new MapAPI(client);
-        Map<String, JSONObject> cityInformation = LIST_OF_CITIES.stream().collect(Collectors.toMap(city -> city, mapAPI::getLatLong));
+        Map<String, JSONObject> cityInformation = listOfCities.stream().collect(Collectors.toMap(city -> city, mapAPI::getLatLong));
         client.close();
-
-        //--------------------------------
-
-        String fileName = "src\\main\\resources\\citySchedule.csv";
-
-        List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();
-
-        /*for(Map.Entry<String, JSONObject> entry : cityInformation.entrySet()) {
-            System.out.printf("%s ; %s\n", entry.getKey(), entry.getValue());
-        }*/
-
-        //--------------------------------
 
         neo4jDButils.registerShutdownHook();
 
