@@ -9,6 +9,9 @@ import org.neo4j.graphdb.Transaction;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import static GraphProperties.NodeTypes.CITY;
+import static GraphProperties.RelationshipTypes.CONNECTED_TO;
+
 public class DBfiller {
 
     private GraphDatabaseService graphDb;
@@ -23,9 +26,9 @@ public class DBfiller {
 
         for (int i = 0; i < connectionLine.getNumberOfCities() - 1; i++) {
 
-            Node firstNode = graphDb.findNode(ShortestPath.NodeTypes.CITY, "name", connectionLine.getCity(i));
-            Node secondNode = graphDb.findNode(ShortestPath.NodeTypes.CITY, "name", connectionLine.getCity(i + 1));
-            Relationship relationship = firstNode.createRelationshipTo(secondNode, ShortestPath.RelTypes.CONNECTED_TO);
+            Node firstNode = graphDb.findNode(CITY, "name", connectionLine.getCity(i));
+            Node secondNode = graphDb.findNode(CITY, "name", connectionLine.getCity(i + 1));
+            Relationship relationship = firstNode.createRelationshipTo(secondNode, CONNECTED_TO);
 
             GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"));
             GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
@@ -40,7 +43,7 @@ public class DBfiller {
     }
 
     private void createNode(String cityName, JSONObject cityData) {
-        Node node = graphDb.createNode(ShortestPath.NodeTypes.CITY);
+        Node node = graphDb.createNode(CITY);
         node.setProperty("name", cityName);
         node.setProperty("lat", cityData.get("lat"));
         node.setProperty("lng", cityData.get("lng"));

@@ -3,13 +3,12 @@ package Main;
 import DistanceFunctions.DistanceCalculator;
 import DistanceFunctions.NaiveGeometricDistance;
 import DistanceFunctions.ReflectedNeo4jDistance;
-import FileIO.FileIOutils;
+import Utils.FileIOutils;
+import Utils.Neo4jDButils;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.json.JSONObject;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.io.fs.FileUtils;
 
@@ -25,14 +24,6 @@ public class ShortestPath {
 
     private static final String DB_PATH = "connectedCitiesDB";
 
-    public enum NodeTypes implements Label {
-        CITY
-    }
-
-    public enum RelTypes implements RelationshipType {
-        CONNECTED_TO
-    }
-
     public static void main(final String[] args) throws IOException, URISyntaxException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         //https://github.com/neo4j/neo4j/tree/2.2.2/community/embedded-examples/src/main/java/org/neo4j/examples
@@ -44,8 +35,9 @@ public class ShortestPath {
         String fileName = "src\\main\\resources\\citySchedule.csv";
         boolean useNaiveDistance = false;
 
-        List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();  //get the list of possible routes
+        //get the list of possible routes
         //once we have this list, extract the list of relevant cities
+        List<CityConnector> cityConnectorArrayList = (new FileIOutils(fileName)).getAllConnections();
         List<String> listOfCities = cityConnectorArrayList.stream().flatMap(connectedCities -> connectedCities.getConnectedCities().stream()).distinct().collect(Collectors.toList());
 
         /*for(Map.Entry<String, JSONObject> entry : cityInformation.entrySet()) {

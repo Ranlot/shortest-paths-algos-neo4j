@@ -1,4 +1,4 @@
-package Main;
+package Utils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;

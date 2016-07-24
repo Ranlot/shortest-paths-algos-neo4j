@@ -1,4 +1,4 @@
-package Main;
+package Utils;
 
 import org.neo4j.graphdb.*;
 

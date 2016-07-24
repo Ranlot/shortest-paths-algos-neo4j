@@ -1,6 +1,6 @@
 package DistanceFunctions;
 
-import Main.FourArgsFunction;
+import Utils.FourArgsFunction;
 import Main.GeoLocation;
 import Utils.UsefulConstants;
 import org.neo4j.graphalgo.impl.util.GeoEstimateEvaluator;
