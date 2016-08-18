@@ -10,9 +10,14 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 import static GraphProperties.NodeTypes.CITY;
-import static GraphProperties.RelationshipTypes.CONNECTED_TO;
+import static GraphProperties.RelationshipTypes.GOING_TO;
+import static Main.ShortestPath.DISTANCE_PROP;
+import static Main.ShortestPath.NODE_NAME;
 
 public class DBfiller {
+
+    private static final String LATITUDE = "lat";
+    private static final String LONGITUDE = "lng";
 
     private GraphDatabaseService graphDb;
     private BiFunction<GeoLocation, GeoLocation, Double> distanceCalculator;
@@ -26,27 +31,27 @@ public class DBfiller {
 
         for (int i = 0; i < connectionLine.getNumberOfCities() - 1; i++) {
 
-            Node firstNode = graphDb.findNode(CITY, "name", connectionLine.getCity(i));
-            Node secondNode = graphDb.findNode(CITY, "name", connectionLine.getCity(i + 1));
-            Relationship relationship = firstNode.createRelationshipTo(secondNode, CONNECTED_TO);
+            Node firstNode = graphDb.findNode(CITY, NODE_NAME, connectionLine.getCity(i));
+            Node secondNode = graphDb.findNode(CITY, NODE_NAME, connectionLine.getCity(i + 1));
+            Relationship relationship = firstNode.createRelationshipTo(secondNode, GOING_TO);
 
-            GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty("lat"), (Double) firstNode.getProperty("lng"));
-            GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty("lat"), (Double) secondNode.getProperty("lng"));
+            GeoLocation location1 = new GeoLocation((Double) firstNode.getProperty(LATITUDE), (Double) firstNode.getProperty(LONGITUDE));
+            GeoLocation location2 = new GeoLocation((Double) secondNode.getProperty(LATITUDE), (Double) secondNode.getProperty(LONGITUDE));
 
             double cityDistance = distanceCalculator.apply(location1, location2);
 
-            relationship.setProperty("distance", cityDistance);
+            relationship.setProperty(DISTANCE_PROP, cityDistance);
 
-            System.out.printf("%s ; %s ; %.2f km\n", relationship.getStartNode().getProperty("name"), relationship.getEndNode().getProperty("name"), (Double) relationship.getProperty("distance"));
+            System.out.printf("%s ; %s ; %.2f km\n", relationship.getStartNode().getProperty(NODE_NAME), relationship.getEndNode().getProperty(NODE_NAME), (Double) relationship.getProperty(DISTANCE_PROP));
 
         }
     }
 
     private void createNode(String cityName, JSONObject cityData) {
         Node node = graphDb.createNode(CITY);
-        node.setProperty("name", cityName);
-        node.setProperty("lat", cityData.get("lat"));
-        node.setProperty("lng", cityData.get("lng"));
+        node.setProperty(NODE_NAME, cityName);
+        node.setProperty(LATITUDE, cityData.get(LATITUDE));
+        node.setProperty(LONGITUDE, cityData.get(LONGITUDE));
     }
 
     public void createAllNodes(Map<String, JSONObject> cityInformation) {
